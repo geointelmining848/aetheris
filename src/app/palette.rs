@@ -2,6 +2,7 @@ use crate::app::Message;
 use crate::app::document::ViewMode;
 use crate::app::theme::AetherisTheme;
 use crate::core::encoding::{LineEnding, TextEncoding};
+use crate::core::language::Language;
 use crate::core::transforms::TransformOp;
 
 /// One executable entry in the fuzzy Command Palette (`Cmd/Ctrl + Shift + P`).
@@ -240,6 +241,21 @@ pub fn all_commands() -> Vec<PaletteCommand> {
             title: format!("Convert Line Endings to {}", eol.label()),
             shortcut: "",
             message: Message::SetLineEnding(eol),
+        });
+    }
+
+    cmds.push(PaletteCommand {
+        category: "Language",
+        title: "Auto-Detect Language from Content".into(),
+        shortcut: "",
+        message: Message::AutoDetectLanguage,
+    });
+    for &lang in Language::ALL {
+        cmds.push(PaletteCommand {
+            category: "Language",
+            title: format!("Set Syntax: {}", lang.label()),
+            shortcut: "",
+            message: Message::SetLanguage(lang),
         });
     }
 

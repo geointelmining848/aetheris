@@ -43,6 +43,8 @@ pub struct DocumentTab {
     pub encoding: TextEncoding,
     pub line_ending: LineEnding,
     pub language: Language,
+    /// When `false`, Aetheris automatically infers syntax language live from buffer content.
+    pub language_locked: bool,
     pub is_dirty: bool,
     pub view_mode: ViewMode,
     pub bookmarks: BTreeSet<usize>,
@@ -82,6 +84,7 @@ impl DocumentTab {
             encoding: TextEncoding::Utf8,
             line_ending: LineEnding::platform_default(),
             language,
+            language_locked: language != Language::PlainText,
             is_dirty: false,
             view_mode: ViewMode::Editor,
             bookmarks: BTreeSet::new(),
@@ -119,8 +122,13 @@ impl DocumentTab {
             .and_then(|s| s.to_str())
             .unwrap_or("Untitled")
             .to_owned();
-        let language = Language::detect_from_path(&path);
+        let mut language = Language::detect_from_path(&path);
+        let locked = language != Language::PlainText;
+        if !locked && let Some(detected) = Language::detect_from_content(text) {
+            language = detected;
+        }
         let mut tab = Self::new_scratch(id, title, text, language);
+        tab.language_locked = locked;
         tab.path = Some(path);
         tab.encoding = encoding;
         tab.line_ending = line_ending;
@@ -168,7 +176,22 @@ impl DocumentTab {
             selection: None,
         });
         self.is_dirty = true;
+        self.auto_detect_language();
         self.refresh_active_view_cache();
+    }
+
+    /// Infer and update syntax language live from content when not explicitly locked by extension or user.
+    pub fn auto_detect_language(&mut self) -> Option<Language> {
+        if self.language_locked {
+            return None;
+        }
+        let detected =
+            Language::detect_from_content(&self.content.text()).unwrap_or(Language::PlainText);
+        if detected != self.language {
+            self.language = detected;
+            return Some(detected);
+        }
+        None
     }
 
     pub fn jump_to_line(&mut self, one_based_line: usize) {

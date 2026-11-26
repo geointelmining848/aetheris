@@ -82,6 +82,7 @@ pub enum Message {
     // Language, encoding, EOL
     CycleLanguage,
     SetLanguage(Language),
+    AutoDetectLanguage,
     CycleEncoding,
     SetEncoding(TextEncoding),
     ReopenWithEncoding(TextEncoding),
@@ -361,12 +362,17 @@ impl AetherisApp {
         match message {
             Message::EditorAction(action) => {
                 let is_edit = action.is_edit();
+                let mut auto_switched = None;
                 if let Some(doc) = self.active_doc_mut() {
                     doc.content.perform(action);
                     if is_edit {
                         doc.is_dirty = true;
+                        auto_switched = doc.auto_detect_language();
                         doc.refresh_active_view_cache();
                     }
+                }
+                if let Some(lang) = auto_switched {
+                    self.status_message = format!("Auto-detected syntax: {}", lang.label());
                 }
                 if is_edit && self.show_find_bar && !self.find_query.is_empty() {
                     self.recompute_find_matches();
@@ -380,6 +386,7 @@ impl AetherisApp {
                     doc.content.perform(action);
                     if is_edit {
                         doc.is_dirty = true;
+                        doc.auto_detect_language();
                         doc.refresh_active_view_cache();
                     }
                 }
@@ -549,14 +556,27 @@ impl AetherisApp {
             Message::CycleLanguage => {
                 if let Some(doc) = self.active_doc_mut() {
                     doc.language = doc.language.next();
+                    doc.language_locked = true;
                     self.status_message = format!("Language: {}", doc.language.label());
                 }
             }
             Message::SetLanguage(lang) => {
                 if let Some(doc) = self.active_doc_mut() {
                     doc.language = lang;
+                    doc.language_locked = true;
                     self.status_message = format!("Language: {}", lang.label());
                 }
+                self.show_palette = false;
+            }
+            Message::AutoDetectLanguage => {
+                if let Some(doc) = self.active_doc_mut() {
+                    doc.language_locked = false;
+                    let detected = Language::detect_from_content(&doc.content.text())
+                        .unwrap_or(Language::PlainText);
+                    doc.language = detected;
+                    self.status_message = format!("Auto-detect enabled: {}", doc.language.label());
+                }
+                self.show_palette = false;
             }
             Message::CycleEncoding => {
                 if let Some(doc) = self.active_doc_mut() {
@@ -1184,7 +1204,11 @@ impl AetherisApp {
                     if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
                         doc_mut.title = name.to_owned();
                     }
-                    doc_mut.language = Language::detect_from_path(&path);
+                    let by_ext = Language::detect_from_path(&path);
+                    if by_ext != Language::PlainText {
+                        doc_mut.language = by_ext;
+                        doc_mut.language_locked = true;
+                    }
                     doc_mut.is_dirty = false;
                 }
                 self.status_message = format!(

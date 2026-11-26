@@ -237,24 +237,20 @@ PLIST
 rm -rf "$APP_BUNDLE"
 mv "$STAGE" "$APP_BUNDLE"
 
-# Add symlink in /Applications so Aetheris appears in Apps / Applications while all bytes stay on X10 Pro
+# Remove any duplicate symlink in /Applications (macOS Apps scans both /Applications and
+# LaunchServices-registered X10 Pro/Applications, so having both creates duplicate icons).
 if [[ -L "$LINK_IN_APPLICATIONS" ]]; then
+  "$LSREG" -u "$LINK_IN_APPLICATIONS" >/dev/null 2>&1 || true
   rm -f "$LINK_IN_APPLICATIONS"
-elif [[ -e "$LINK_IN_APPLICATIONS" ]]; then
-  echo "Warning: real file already exists at $LINK_IN_APPLICATIONS; leaving it untouched." >&2
-fi
-if [[ ! -e "$LINK_IN_APPLICATIONS" ]]; then
-  ln -s "$APP_BUNDLE" "$LINK_IN_APPLICATIONS"
 fi
 
 # Add convenient CLI command ~/.local/bin/aetheris
 mkdir -p "${CLI_LINK:h}"
 ln -sf "$APP_BUNDLE/Contents/MacOS/aetheris" "$CLI_LINK"
 
-# Register with macOS LaunchServices & Spotlight so Aetheris appears in Apps immediately
+# Register strictly the single canonical X10 Pro app bundle with LaunchServices & Spotlight
 "$LSREG" -f "$APP_BUNDLE" >/dev/null 2>&1 || true
 /usr/bin/mdimport "$APP_BUNDLE" >/dev/null 2>&1 || true
 
-echo "Installed: $APP_BUNDLE"
-echo "Linked in Apps: $LINK_IN_APPLICATIONS -> $APP_BUNDLE"
+echo "Installed: $APP_BUNDLE (single canonical Apps entry)"
 echo "CLI linked: $CLI_LINK"

@@ -30,7 +30,7 @@ Most developers end up juggling 3–4 tools because every editor leaves a gap:
 - **Line Surgery & Bookmarks**: Sort (A–Z, Z–A, numeric, line length), deduplicate, strip empty/whitespace lines, trim trailing spaces, reverse lines, add line numbers, toggle line bookmarks, and extract or delete bookmarked lines.
 
 ### Developer Swiss-Army Knife (Built-In, Zero Plugins Needed)
-- **Syntax Highlighting for 45+ Languages** powered by `syntect` with curated Dark & Light themes (*Aetheris Midnight*, *Obsidian*, *Nord*, *Solarized Dark*, *Paper Light*).
+- **Syntax Highlighting for 40+ Languages with Live Auto-Detection** powered by `syntect`: automatically recognizes code as you type or paste even in unsaved scratchpads (no file extension required), plus manual language switching via the status bar or Command Palette and curated Dark & Light themes (*Aetheris Midnight*, *Tokyo Night*, *Catppuccin Mocha*, *Nord*, *Solarized Dark*, *Paper Light*).
 - **Split-Pane Editing & Multi-Tab Workbench**: Side-by-side editing of two tabs simultaneously.
 - **Inline Find & Replace + Ripgrep-Class Find in Files**: Fast plain-text, case-sensitive, whole-word, and Rust Regex search/replace within a tab or across an entire workspace folder (respecting `.gitignore`).
 - **Built-In Side-by-Side Diff View**: Compare any two open tabs or files on disk with color-coded additions, deletions, and change summaries.

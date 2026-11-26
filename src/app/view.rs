@@ -1371,18 +1371,24 @@ fn large_file_pane<'a>(
 }
 
 fn status_bar(app: &AetherisApp, c: ChromeColors) -> Element<'_, Message> {
-    let (line, col, lines_total, lang, enc, eol) = if let Some(doc) = app.active_doc() {
+    let (line, col, lines_total, lang_display, enc, eol) = if let Some(doc) = app.active_doc() {
         let (ln, cl) = doc.cursor_line_col();
+        let lang_str =
+            if !doc.language_locked && doc.language != crate::core::language::Language::PlainText {
+                format!("{} (Auto)", doc.language.label())
+            } else {
+                doc.language.label().to_owned()
+            };
         (
             ln,
             cl,
             doc.line_count(),
-            doc.language.label(),
+            lang_str,
             doc.encoding.label(),
             doc.line_ending.short_label(),
         )
     } else {
-        (1, 1, 0, "Plain Text", "UTF-8", "LF")
+        (1, 1, 0, "Plain Text".to_owned(), "UTF-8", "LF")
     };
 
     let rec_indicator = if app.macro_recorder.is_recording() {
@@ -1411,7 +1417,7 @@ fn status_bar(app: &AetherisApp, c: ChromeColors) -> Element<'_, Message> {
             c,
             Message::ToggleGotoLine
         ),
-        status_pill(lang.to_owned(), c, Message::CycleLanguage),
+        status_pill(lang_display, c, Message::CycleLanguage),
         status_pill(enc.to_owned(), c, Message::CycleEncoding),
         status_pill(eol.to_owned(), c, Message::CycleLineEnding),
         status_pill(wrap_label.to_owned(), c, Message::ToggleWordWrap),
