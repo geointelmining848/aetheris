@@ -191,6 +191,7 @@ impl Language {
                 "dockerfile" => return Language::Dockerfile,
                 "makefile" | "gnumakefile" => return Language::Makefile,
                 "cargo.lock" => return Language::Toml,
+                ".rprofile" | ".renviron" => return Language::R,
                 ".bashrc" | ".zshrc" | ".profile" | ".bash_profile" => return Language::Shell,
                 ".gitignore" | ".env" | ".editorconfig" => return Language::Ini,
                 _ => {}
@@ -227,7 +228,7 @@ impl Language {
             "rb" | "gemspec" => Language::Ruby,
             "php" => Language::Php,
             "lua" => Language::Lua,
-            "r" | "rmd" => Language::R,
+            "r" | "rmd" | "rscript" => Language::R,
             "pl" | "pm" => Language::Perl,
             "hs" => Language::Haskell,
             "zig" => Language::Zig,
@@ -288,6 +289,9 @@ impl Language {
             }
             if lower.contains("lua") {
                 return Some(Language::Lua);
+            }
+            if lower.contains("rscript") || lower.ends_with("/r") || lower.ends_with(" r") {
+                return Some(Language::R);
             }
         }
 
@@ -352,9 +356,10 @@ impl Language {
         }
 
         // 3. Weighted language scoring
-        let mut scores: [(Language, i32); 16] = [
+        let mut scores: [(Language, i32); 17] = [
             (Language::Rust, 0),
             (Language::Python, 0),
+            (Language::R, 0),
             (Language::TypeScript, 0),
             (Language::JavaScript, 0),
             (Language::Sql, 0),
@@ -420,6 +425,58 @@ impl Language {
             (t.starts_with("def ") || t.starts_with("class ")) && t.ends_with(':')
         }) {
             add(Language::Python, 4);
+        }
+
+        // R (Base R, Tidyverse, Statistical & Spatial R)
+        for (pat, pts) in [
+            ("library(", 5),
+            ("install.packages(", 5),
+            ("%>%", 5),
+            ("%in%", 5),
+            ("data.frame(", 5),
+            ("tibble(", 5),
+            ("as_tibble(", 5),
+            ("ggplot(", 5),
+            ("<- function(", 5),
+            (" <- ", 4),
+            ("|>", 4),
+            ("geom_", 4),
+            ("aes(", 4),
+            ("read.csv(", 4),
+            ("read_csv(", 4),
+            ("readRDS(", 4),
+            ("saveRDS(", 4),
+            ("paste0(", 4),
+            ("lapply(", 4),
+            ("sapply(", 4),
+            ("rbind(", 4),
+            ("cbind(", 4),
+            ("setwd(", 4),
+            ("getwd(", 4),
+            ("st_read(", 4),
+            ("summary(", 3),
+            ("lm(", 3),
+            ("glm(", 3),
+            ("nrow(", 3),
+            ("ncol(", 3),
+            ("mean(", 2),
+            ("TRUE", 1),
+            ("FALSE", 1),
+        ] {
+            if sample.contains(pat) {
+                add(Language::R, pts);
+            }
+        }
+        // Check word-bounded R vector constructor `c(` without matching `func(`
+        if sample.starts_with("c(")
+            || sample.contains(" c(")
+            || sample.contains("<-c(")
+            || sample.contains("(c(")
+            || sample.contains(",c(")
+            || sample.contains("=c(")
+            || sample.contains("\nc(")
+        {
+            add(Language::R, 2);
         }
 
         // TypeScript & JavaScript
@@ -767,6 +824,34 @@ mod tests {
                 "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"hi\") }"
             ),
             Some(Language::Go)
+        );
+        assert_eq!(
+            Language::detect_from_content("#!/usr/bin/env Rscript\nprint(1 + 1)\n"),
+            Some(Language::R)
+        );
+        assert_eq!(
+            Language::detect_from_content("library(sf)\npts <- st_read('cities.gpkg')\n"),
+            Some(Language::R)
+        );
+        assert_eq!(
+            Language::detect_from_content("x <- c(1, 2, 3, 4)\n"),
+            Some(Language::R)
+        );
+        assert_eq!(
+            Language::detect_from_content(
+                "# Spatial regression\nfit <- lm(y ~ x1 + x2, data = df)\nsummary(fit)\n"
+            ),
+            Some(Language::R)
+        );
+        assert_eq!(
+            Language::detect_from_content(
+                "df %>%\n  filter(pop > 1000) %>%\n  ggplot(aes(x = lon, y = lat)) + geom_point()\n"
+            ),
+            Some(Language::R)
+        );
+        assert_eq!(
+            Language::detect_from_content("calc <- function(v) {\n  mean(v, na.rm = TRUE)\n}\n"),
+            Some(Language::R)
         );
         assert_eq!(
             Language::detect_from_content(
